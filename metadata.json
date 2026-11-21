@@ -1,0 +1,6 @@
+{
+  "name": "Crown & Conquest",
+  "description": "Medieval real-time strategy game with isometric empire building, resource gathering, four historic ages, and tactical combat.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

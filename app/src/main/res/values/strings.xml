@@ -1,0 +1,25 @@
+<resources>
+    <string name="app_name">Crown &amp; Conquest</string>
+    <string name="game_subtitle">Isometric Medieval Strategy</string>
+    <string name="action_play_skirmish">Play Skirmish</string>
+    <string name="action_how_to_play">Overmap &amp; FAQ</string>
+    <string name="action_launch_battle">Launch Battle</string>
+    <string name="action_resume">Resume Match</string>
+    <string name="action_restart">Restart Skirmish</string>
+    <string name="action_quit_menu">Return to Menu</string>
+    <string name="label_civilization">Civilization</string>
+    <string name="label_map_type">Battleground</string>
+    <string name="label_difficulty">AI Commander</string>
+    <string name="label_wood">Wood</string>
+    <string name="label_food">Food</string>
+    <string name="label_gold">Gold</string>
+    <string name="label_stone">Stone</string>
+    <string name="label_population">Pop</string>
+    <string name="label_idle_villagers">Idle</string>
+    <string name="label_box_select">Box Select</string>
+    <string name="label_army">Army</string>
+    <string name="label_tc">TC</string>
+    <string name="label_cancel">Cancel</string>
+    <string name="label_victory">Victory</string>
+    <string name="label_defeat">Defeat</string>
+</resources>
