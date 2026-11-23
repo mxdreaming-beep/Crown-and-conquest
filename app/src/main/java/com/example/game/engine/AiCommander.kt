@@ -70,6 +70,7 @@ object AiCommander {
       if (nextAgeTech != null &&
         aiVillagers.size >= ageThresholdVils &&
         nextAgeTech !in aiState.researchingTechs &&
+        GameDefinitions.areTechPrerequisitesMet(nextWorld, aiFaction, nextAgeTech) &&
         aiState.resources.canAfford(GameDefinitions.techDefs.getValue(nextAgeTech).cost)
       ) {
         nextWorld = RtsEngine.enqueueTech(nextWorld, aiFaction, enemyTc.id, nextAgeTech)
@@ -103,7 +104,7 @@ object AiCommander {
             aiBuildings = updatedAiBuildings,
           )
         if (desiredBuilding != null) {
-          val spot = findBuildSpotNear(nextWorld, enemyTc.tileX, enemyTc.tileY, desiredBuilding)
+          val spot = findBuildSpotNear(nextWorld, aiFaction, enemyTc.tileX, enemyTc.tileY, desiredBuilding)
           if (spot != null) {
             nextWorld =
               RtsEngine.placeBuilding(
@@ -223,9 +224,9 @@ object AiCommander {
               TechType.SUPPLY_LOGISTICS,
             ).firstOrNull {
               val def = GameDefinitions.techDefs.getValue(it)
-              curState.age.index >= def.requiredAge.index &&
-                it !in curState.researchedTechs &&
+              it !in curState.researchedTechs &&
                 it !in curState.researchingTechs &&
+                GameDefinitions.areTechPrerequisitesMet(nextWorld, aiFaction, it) &&
                 curState.resources.canAfford(def.cost)
             }
           if (tech != null) {
@@ -242,9 +243,9 @@ object AiCommander {
               TechType.INDUSTRIAL_EXCAVATION,
             ).firstOrNull {
               val def = GameDefinitions.techDefs.getValue(it)
-              curState.age.index >= def.requiredAge.index &&
-                it !in curState.researchedTechs &&
+              it !in curState.researchedTechs &&
                 it !in curState.researchingTechs &&
+                GameDefinitions.areTechPrerequisitesMet(nextWorld, aiFaction, it) &&
                 curState.resources.canAfford(def.cost)
             }
           if (tech != null) {
@@ -264,9 +265,9 @@ object AiCommander {
               TechType.AERODYNAMICS,
             ).firstOrNull {
               val def = GameDefinitions.techDefs.getValue(it)
-              curState.age.index >= def.requiredAge.index &&
-                it !in curState.researchedTechs &&
+              it !in curState.researchedTechs &&
                 it !in curState.researchingTechs &&
+                GameDefinitions.areTechPrerequisitesMet(nextWorld, aiFaction, it) &&
                 curState.resources.canAfford(def.cost)
             }
           if (tech != null) {
@@ -288,9 +289,9 @@ object AiCommander {
               TechType.REACTIVE_ARMOR,
             ).firstOrNull {
               val def = GameDefinitions.techDefs.getValue(it)
-              curState.age.index >= def.requiredAge.index &&
-                it !in curState.researchedTechs &&
+              it !in curState.researchedTechs &&
                 it !in curState.researchingTechs &&
+                GameDefinitions.areTechPrerequisitesMet(nextWorld, aiFaction, it) &&
                 curState.resources.canAfford(def.cost)
             }
           if (tech != null) {
@@ -419,6 +420,7 @@ object AiCommander {
 
   private fun findBuildSpotNear(
     world: GameWorld,
+    aiFaction: Faction,
     originX: Int,
     originY: Int,
     type: BuildingType,
@@ -428,7 +430,7 @@ object AiCommander {
         for (dx in -radius..radius) {
           val tx = originX + dx
           val ty = originY + dy
-          if (RtsEngine.canPlaceBuilding(world, type, tx, ty)) {
+          if (RtsEngine.canPlaceBuilding(world, type, tx, ty, faction = aiFaction)) {
             return tx to ty
           }
         }

@@ -16,8 +16,8 @@ android {
     applicationId = "com.aistudio.crownconquest.vkmrzp"
     minSdk = 24
     targetSdk = 36
-    versionCode = 28
-    versionName = "28.0"
+    versionCode = 32
+    versionName = "32.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }

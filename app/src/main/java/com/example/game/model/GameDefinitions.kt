@@ -70,7 +70,18 @@ data class TechDef(
   val requiredAge: Age,
   val researchedAt: BuildingType,
   val researchTimeSec: Float,
+  val requiredBuildings: Set<BuildingType> = emptySet(),
+  val requiredTechs: Set<TechType> = emptySet(),
 )
+
+data class TechRequirementStatus(
+  val missingAge: Age? = null,
+  val missingBuildings: List<BuildingType> = emptyList(),
+  val missingTechs: List<TechType> = emptyList(),
+) {
+  val isMet: Boolean
+    get() = missingAge == null && missingBuildings.isEmpty() && missingTechs.isEmpty()
+}
 
 object GameDefinitions {
 
@@ -686,6 +697,7 @@ object GameDefinitions {
           requiredAge = Age.DARK_AGE,
           researchedAt = BuildingType.TOWN_CENTER,
           researchTimeSec = 26f,
+          requiredBuildings = setOf(BuildingType.MILL, BuildingType.BARRACKS),
         ),
         TechDef(
           type = TechType.ADVANCE_CASTLE,
@@ -693,6 +705,8 @@ object GameDefinitions {
           requiredAge = Age.FEUDAL_AGE,
           researchedAt = BuildingType.TOWN_CENTER,
           researchTimeSec = 32f,
+          requiredBuildings = setOf(BuildingType.BLACKSMITH, BuildingType.ARCHERY_RANGE),
+          requiredTechs = setOf(TechType.FORGING, TechType.STONE_GRINDING),
         ),
         TechDef(
           type = TechType.ADVANCE_IMPERIAL,
@@ -700,6 +714,8 @@ object GameDefinitions {
           requiredAge = Age.CASTLE_AGE,
           researchedAt = BuildingType.TOWN_CENTER,
           researchTimeSec = 36f,
+          requiredBuildings = setOf(BuildingType.UNIVERSITY, BuildingType.CASTLE),
+          requiredTechs = setOf(TechType.MASONRY, TechType.IRON_CASTING),
         ),
         TechDef(
           type = TechType.ADVANCE_INDUSTRIAL,
@@ -707,6 +723,8 @@ object GameDefinitions {
           requiredAge = Age.IMPERIAL_AGE,
           researchedAt = BuildingType.TOWN_CENTER,
           researchTimeSec = 38f,
+          requiredBuildings = setOf(BuildingType.UNIVERSITY, BuildingType.BLACKSMITH),
+          requiredTechs = setOf(TechType.BALLISTICS, TechType.BLAST_FURNACE),
         ),
         TechDef(
           type = TechType.ADVANCE_MODERN,
@@ -714,6 +732,8 @@ object GameDefinitions {
           requiredAge = Age.INDUSTRIAL_AGE,
           researchedAt = BuildingType.TOWN_CENTER,
           researchTimeSec = 42f,
+          requiredBuildings = setOf(BuildingType.WAR_FACTORY, BuildingType.UNIVERSITY),
+          requiredTechs = setOf(TechType.CHEMISTRY, TechType.BALLISTICS_ALLOYS),
         ),
 
         // Mill Researches
@@ -730,6 +750,7 @@ object GameDefinitions {
           requiredAge = Age.FEUDAL_AGE,
           researchedAt = BuildingType.MILL,
           researchTimeSec = 14f,
+          requiredTechs = setOf(TechType.STONE_GRINDING),
         ),
         TechDef(
           type = TechType.WHEELBARROW,
@@ -744,6 +765,7 @@ object GameDefinitions {
           requiredAge = Age.CASTLE_AGE,
           researchedAt = BuildingType.MILL,
           researchTimeSec = 16f,
+          requiredTechs = setOf(TechType.HORSE_COLLAR),
         ),
         TechDef(
           type = TechType.GRANARY_SILOS,
@@ -751,6 +773,7 @@ object GameDefinitions {
           requiredAge = Age.CASTLE_AGE,
           researchedAt = BuildingType.MILL,
           researchTimeSec = 16f,
+          requiredTechs = setOf(TechType.HORSE_COLLAR),
         ),
         TechDef(
           type = TechType.CROP_ROTATION,
@@ -758,6 +781,7 @@ object GameDefinitions {
           requiredAge = Age.IMPERIAL_AGE,
           researchedAt = BuildingType.MILL,
           researchTimeSec = 18f,
+          requiredTechs = setOf(TechType.HEAVY_PLOW),
         ),
         TechDef(
           type = TechType.MECHANIZED_FARMING,
@@ -765,6 +789,8 @@ object GameDefinitions {
           requiredAge = Age.INDUSTRIAL_AGE,
           researchedAt = BuildingType.MILL,
           researchTimeSec = 18f,
+          requiredBuildings = setOf(BuildingType.UNIVERSITY),
+          requiredTechs = setOf(TechType.CROP_ROTATION),
         ),
         TechDef(
           type = TechType.SUPPLY_LOGISTICS,
@@ -772,6 +798,8 @@ object GameDefinitions {
           requiredAge = Age.MODERN_AGE,
           researchedAt = BuildingType.MILL,
           researchTimeSec = 20f,
+          requiredBuildings = setOf(BuildingType.WAR_FACTORY),
+          requiredTechs = setOf(TechType.MECHANIZED_FARMING),
         ),
 
         // Mining Camp Researches
@@ -795,6 +823,7 @@ object GameDefinitions {
           requiredAge = Age.CASTLE_AGE,
           researchedAt = BuildingType.MINING_CAMP,
           researchTimeSec = 16f,
+          requiredTechs = setOf(TechType.GOLD_MINING),
         ),
         TechDef(
           type = TechType.STONE_SHAFT_MINING,
@@ -802,6 +831,7 @@ object GameDefinitions {
           requiredAge = Age.CASTLE_AGE,
           researchedAt = BuildingType.MINING_CAMP,
           researchTimeSec = 16f,
+          requiredTechs = setOf(TechType.STONE_MINING),
         ),
         TechDef(
           type = TechType.INDUSTRIAL_EXCAVATION,
@@ -809,6 +839,8 @@ object GameDefinitions {
           requiredAge = Age.INDUSTRIAL_AGE,
           researchedAt = BuildingType.MINING_CAMP,
           researchTimeSec = 18f,
+          requiredBuildings = setOf(BuildingType.WAR_FACTORY),
+          requiredTechs = setOf(TechType.GOLD_SHAFT_MINING, TechType.STONE_SHAFT_MINING),
         ),
 
         // University Researches
@@ -832,6 +864,8 @@ object GameDefinitions {
           requiredAge = Age.CASTLE_AGE,
           researchedAt = BuildingType.UNIVERSITY,
           researchTimeSec = 17f,
+          requiredBuildings = setOf(BuildingType.BLACKSMITH),
+          requiredTechs = setOf(TechType.MASONRY),
         ),
         TechDef(
           type = TechType.ARCHITECTURE,
@@ -839,6 +873,8 @@ object GameDefinitions {
           requiredAge = Age.IMPERIAL_AGE,
           researchedAt = BuildingType.UNIVERSITY,
           researchTimeSec = 19f,
+          requiredBuildings = setOf(BuildingType.CASTLE),
+          requiredTechs = setOf(TechType.MASONRY),
         ),
         TechDef(
           type = TechType.SIEGE_ENGINEERS,
@@ -846,6 +882,8 @@ object GameDefinitions {
           requiredAge = Age.IMPERIAL_AGE,
           researchedAt = BuildingType.UNIVERSITY,
           researchTimeSec = 20f,
+          requiredBuildings = setOf(BuildingType.CASTLE),
+          requiredTechs = setOf(TechType.BALLISTICS),
         ),
         TechDef(
           type = TechType.CHEMISTRY,
@@ -853,6 +891,8 @@ object GameDefinitions {
           requiredAge = Age.INDUSTRIAL_AGE,
           researchedAt = BuildingType.UNIVERSITY,
           researchTimeSec = 21f,
+          requiredBuildings = setOf(BuildingType.BLACKSMITH),
+          requiredTechs = setOf(TechType.BALLISTICS),
         ),
         TechDef(
           type = TechType.ACADEMIC_CONSCRIPTION,
@@ -860,6 +900,8 @@ object GameDefinitions {
           requiredAge = Age.INDUSTRIAL_AGE,
           researchedAt = BuildingType.UNIVERSITY,
           researchTimeSec = 19f,
+          requiredBuildings = setOf(BuildingType.BARRACKS),
+          requiredTechs = setOf(TechType.ARCHITECTURE),
         ),
         TechDef(
           type = TechType.AERODYNAMICS,
@@ -867,6 +909,8 @@ object GameDefinitions {
           requiredAge = Age.MODERN_AGE,
           researchedAt = BuildingType.UNIVERSITY,
           researchTimeSec = 22f,
+          requiredBuildings = setOf(BuildingType.AIRFIELD),
+          requiredTechs = setOf(TechType.CHEMISTRY),
         ),
 
         // Blacksmith Researches
@@ -897,6 +941,7 @@ object GameDefinitions {
           requiredAge = Age.CASTLE_AGE,
           researchedAt = BuildingType.BLACKSMITH,
           researchTimeSec = 16f,
+          requiredTechs = setOf(TechType.FORGING),
         ),
         TechDef(
           type = TechType.CHAIN_MAIL,
@@ -904,6 +949,7 @@ object GameDefinitions {
           requiredAge = Age.CASTLE_AGE,
           researchedAt = BuildingType.BLACKSMITH,
           researchTimeSec = 16f,
+          requiredTechs = setOf(TechType.SCALE_ARMOR),
         ),
         TechDef(
           type = TechType.BODKIN_ARROW,
@@ -911,6 +957,7 @@ object GameDefinitions {
           requiredAge = Age.CASTLE_AGE,
           researchedAt = BuildingType.BLACKSMITH,
           researchTimeSec = 16f,
+          requiredTechs = setOf(TechType.FLETCHING),
         ),
         TechDef(
           type = TechType.BLAST_FURNACE,
@@ -918,6 +965,8 @@ object GameDefinitions {
           requiredAge = Age.IMPERIAL_AGE,
           researchedAt = BuildingType.BLACKSMITH,
           researchTimeSec = 18f,
+          requiredBuildings = setOf(BuildingType.CASTLE),
+          requiredTechs = setOf(TechType.IRON_CASTING),
         ),
         TechDef(
           type = TechType.PLATE_ARMOR,
@@ -925,6 +974,8 @@ object GameDefinitions {
           requiredAge = Age.IMPERIAL_AGE,
           researchedAt = BuildingType.BLACKSMITH,
           researchTimeSec = 18f,
+          requiredBuildings = setOf(BuildingType.CASTLE),
+          requiredTechs = setOf(TechType.CHAIN_MAIL),
         ),
         TechDef(
           type = TechType.BALLISTICS_ALLOYS,
@@ -932,6 +983,8 @@ object GameDefinitions {
           requiredAge = Age.INDUSTRIAL_AGE,
           researchedAt = BuildingType.BLACKSMITH,
           researchTimeSec = 19f,
+          requiredBuildings = setOf(BuildingType.UNIVERSITY),
+          requiredTechs = setOf(TechType.BODKIN_ARROW),
         ),
         TechDef(
           type = TechType.REACTIVE_ARMOR,
@@ -939,6 +992,8 @@ object GameDefinitions {
           requiredAge = Age.MODERN_AGE,
           researchedAt = BuildingType.BLACKSMITH,
           researchTimeSec = 20f,
+          requiredBuildings = setOf(BuildingType.WAR_FACTORY),
+          requiredTechs = setOf(TechType.PLATE_ARMOR),
         ),
 
         // Unit Upgrades
@@ -948,6 +1003,8 @@ object GameDefinitions {
           requiredAge = Age.FEUDAL_AGE,
           researchedAt = BuildingType.BARRACKS,
           researchTimeSec = 14f,
+          requiredBuildings = setOf(BuildingType.BLACKSMITH),
+          requiredTechs = setOf(TechType.FORGING),
         ),
         TechDef(
           type = TechType.UPGRADE_PIKEMAN,
@@ -955,6 +1012,7 @@ object GameDefinitions {
           requiredAge = Age.CASTLE_AGE,
           researchedAt = BuildingType.BARRACKS,
           researchTimeSec = 16f,
+          requiredTechs = setOf(TechType.UPGRADE_MAN_AT_ARMS),
         ),
         TechDef(
           type = TechType.UPGRADE_CROSSBOW,
@@ -962,9 +1020,28 @@ object GameDefinitions {
           requiredAge = Age.CASTLE_AGE,
           researchedAt = BuildingType.ARCHERY_RANGE,
           researchTimeSec = 16f,
+          requiredBuildings = setOf(BuildingType.BLACKSMITH),
+          requiredTechs = setOf(TechType.FLETCHING),
         ),
       )
       .associateBy { it.type }
+
+  fun missingTechRequirements(world: GameWorld, faction: Faction, techType: TechType): TechRequirementStatus {
+    val fState = world.stateFor(faction)
+    val def = techDefs.getValue(techType)
+    val missingAge = if (fState.age.index < def.requiredAge.index) def.requiredAge else null
+    val completedTypes = world.buildings.filter { it.faction == faction && it.isComplete }.map { it.type }.toSet()
+    val missingBuildings = def.requiredBuildings.filter { it !in completedTypes }
+    val missingTechs = def.requiredTechs.filter { it !in fState.researchedTechs }
+    return TechRequirementStatus(
+      missingAge = missingAge,
+      missingBuildings = missingBuildings,
+      missingTechs = missingTechs,
+    )
+  }
+
+  fun areTechPrerequisitesMet(world: GameWorld, faction: Faction, techType: TechType): Boolean =
+    missingTechRequirements(world, faction, techType).isMet
 
   fun adjustedBuildingCost(type: BuildingType, civ: Civilization): ResourceCost {
     val base = buildingDefs.getValue(type).cost

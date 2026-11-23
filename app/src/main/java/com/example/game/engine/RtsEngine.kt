@@ -29,6 +29,24 @@ object RtsEngine {
   const val MAX_PRODUCTION_QUEUE = 15
   const val CARRY_CAPACITY = 10
   const val VILLAGER_AUTO_RADIUS = 15f
+  const val BUILD_TC_RADIUS = 20f
+
+  fun isWithinBuildRadius(
+    world: GameWorld,
+    faction: Faction,
+    type: BuildingType,
+    tileX: Int,
+    tileY: Int,
+    radius: Float = BUILD_TC_RADIUS,
+  ): Boolean {
+    if (type == BuildingType.TOWN_CENTER) return true
+    val fp = GameDefinitions.buildingDefs.getValue(type).footprintTiles
+    val cx = tileX + fp * 0.5f
+    val cy = tileY + fp * 0.5f
+    val tcs = world.buildings.filter { it.faction == faction && it.type == BuildingType.TOWN_CENTER }
+    if (tcs.isEmpty()) return false
+    return tcs.any { tc -> hypot(cx - tc.centerX, cy - tc.centerY) <= radius }
+  }
 
   fun isWithinTownCenterRadius(
     wx: Float,
@@ -127,10 +145,14 @@ object RtsEngine {
     tileX: Int,
     tileY: Int,
     ignoreBuildingId: Int = -1,
+    faction: Faction? = null,
   ): Boolean {
     val def = GameDefinitions.buildingDefs.getValue(type)
     val fp = def.footprintTiles
     if (tileX < 1 || tileY < 1 || tileX + fp > world.mapSize - 1 || tileY + fp > world.mapSize - 1) {
+      return false
+    }
+    if (faction != null && !isWithinBuildRadius(world, faction, type, tileX, tileY)) {
       return false
     }
     for (dy in 0 until fp) {
@@ -161,7 +183,7 @@ object RtsEngine {
     tileY: Int,
     builderIds: List<Int>,
   ): GameWorld {
-    if (!canPlaceBuilding(world, type, tileX, tileY)) return world
+    if (!canPlaceBuilding(world, type, tileX, tileY, faction = faction)) return world
     val fState = world.stateFor(faction)
     val def = GameDefinitions.buildingDefs.getValue(type)
     if (fState.age.index < def.requiredAge.index) return world
@@ -206,7 +228,7 @@ object RtsEngine {
   ): GameWorld {
     val existing = world.buildings.firstOrNull { it.id == buildingId && it.faction == faction } ?: return world
     if (existing.tileX == targetTileX && existing.tileY == targetTileY) return world
-    if (!canPlaceBuilding(world, existing.type, targetTileX, targetTileY, ignoreBuildingId = buildingId)) {
+    if (!canPlaceBuilding(world, existing.type, targetTileX, targetTileY, ignoreBuildingId = buildingId, faction = faction)) {
       return world
     }
 
@@ -308,7 +330,7 @@ object RtsEngine {
     val fState = world.stateFor(faction)
     if (techType in fState.researchedTechs || techType in fState.researchingTechs) return world
     val techDef = GameDefinitions.techDefs.getValue(techType)
-    if (fState.age.index < techDef.requiredAge.index) return world
+    if (!GameDefinitions.areTechPrerequisitesMet(world, faction, techType)) return world
     if (techDef.researchedAt != building.type) return world
     if (!fState.resources.canAfford(techDef.cost)) return world
 

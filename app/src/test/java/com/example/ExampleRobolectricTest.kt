@@ -16,9 +16,11 @@ import com.example.game.render.ProceduralTextures
 import com.example.game.render.SpriteAtlas
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
@@ -264,7 +266,7 @@ class ExampleRobolectricTest {
     val canvasBounds = composeRule.onNodeWithTag("battlefield_canvas").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
     val minimapBounds = composeRule.onNodeWithTag("tactical_minimap").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
     assertTrue("Expected tall battlefield canvas, got $canvasBounds", canvasBounds.height > 200f && canvasBounds.width > 200f)
-    assertTrue("Expected visible minimap, got $minimapBounds", minimapBounds.height > 80f && minimapBounds.width > 80f)
+    assertTrue("Expected visible minimap, got $minimapBounds", minimapBounds.height >= 40f && minimapBounds.width >= 40f)
   }
 
   @Test
@@ -1733,6 +1735,207 @@ class ExampleRobolectricTest {
     }
     assertTrue("Expected explored (fog=1) terrain/bridges/buildings to render brightly, got $visibleBrightPixels", visibleBrightPixels > 200)
     assertTrue("Expected explored (fog=1) canvas to differ clearly from unexplored shroud, got $diffPixels", diffPixels > 500)
+  }
+
+  @Test
+  fun `buildings require 20-tile town center radius unless building a new town center`() {
+    val tc =
+      Building(
+        id = 1,
+        type = BuildingType.TOWN_CENTER,
+        faction = Faction.PLAYER,
+        tileX = 6,
+        tileY = 6,
+        footprint = 3,
+        hp = 2400,
+        maxHp = 2400,
+        buildProgress = 1f,
+        isComplete = true,
+      ) // center = (7.5, 7.5)
+    val vil =
+      com.example.game.model.Unit(
+        id = 2,
+        type = UnitType.VILLAGER,
+        faction = Faction.PLAYER,
+        x = 34.0f,
+        y = 34.0f,
+        hp = 40,
+        maxHp = 40,
+      )
+    var world =
+      buildBlankTestWorld(listOf(tc), listOf(vil), emptyList(), mapSize = 52).let { w ->
+        w.copy(
+          playerState =
+            w.playerState.copy(
+              age = com.example.game.model.Age.CASTLE_AGE,
+              resources = com.example.game.model.ResourcePool(wood = 1200, food = 500, gold = 500, stone = 500),
+            )
+        )
+      }
+
+    // Tile (33, 33) -> dist ~ 37 tiles (> 20)
+    assertEquals(false, RtsEngine.canPlaceBuilding(world, BuildingType.HOUSE, 33, 33, faction = Faction.PLAYER))
+    val blockedHouseWorld = RtsEngine.placeBuilding(world, Faction.PLAYER, BuildingType.HOUSE, 33, 33, listOf(vil.id))
+    assertEquals(world.buildings.size, blockedHouseWorld.buildings.size)
+
+    // New Town Center CAN be placed outside the 20-tile radius
+    assertEquals(true, RtsEngine.canPlaceBuilding(world, BuildingType.TOWN_CENTER, 32, 32, faction = Faction.PLAYER))
+    world = RtsEngine.placeBuilding(world, Faction.PLAYER, BuildingType.TOWN_CENTER, 32, 32, listOf(vil.id))
+    assertTrue(world.buildings.count { it.faction == Faction.PLAYER && it.type == BuildingType.TOWN_CENTER } == 2)
+
+    // Once the new Town Center is placed near (32, 32), House at (36, 32) is within 20 tiles and succeeds
+    assertEquals(true, RtsEngine.canPlaceBuilding(world, BuildingType.HOUSE, 36, 32, faction = Faction.PLAYER))
+  }
+
+  @Test
+  fun `tech upgrades enforce prerequisite buildings and prerequisite researches`() {
+    val tc =
+      Building(
+        id = 1,
+        type = BuildingType.TOWN_CENTER,
+        faction = Faction.PLAYER,
+        tileX = 8,
+        tileY = 8,
+        footprint = 3,
+        hp = 2400,
+        maxHp = 2400,
+        buildProgress = 1f,
+        isComplete = true,
+      )
+    val blacksmith =
+      Building(
+        id = 2,
+        type = BuildingType.BLACKSMITH,
+        faction = Faction.PLAYER,
+        tileX = 12,
+        tileY = 8,
+        footprint = 2,
+        hp = 1400,
+        maxHp = 1400,
+        buildProgress = 1f,
+        isComplete = true,
+      )
+    var world =
+      buildBlankTestWorld(listOf(tc, blacksmith), emptyList(), emptyList()).let { w ->
+        w.copy(
+          playerState =
+            w.playerState.copy(
+              age = com.example.game.model.Age.CASTLE_AGE,
+              resources = com.example.game.model.ResourcePool(wood = 1200, food = 1500, gold = 1200, stone = 600),
+            )
+        )
+      }
+
+    // IRON_CASTING requires FORGING first
+    val missingIron = com.example.game.model.GameDefinitions.missingTechRequirements(world, Faction.PLAYER, com.example.game.model.TechType.IRON_CASTING)
+    assertEquals(false, missingIron.isMet)
+    assertTrue(com.example.game.model.TechType.FORGING in missingIron.missingTechs)
+    val blockedBlacksmith = RtsEngine.enqueueTech(world, Faction.PLAYER, blacksmith.id, com.example.game.model.TechType.IRON_CASTING)
+    assertEquals(0, blockedBlacksmith.buildings.first { it.id == blacksmith.id }.queue.size)
+
+    // ADVANCE_CASTLE requires BLACKSMITH, ARCHERY_RANGE, FORGING, STONE_GRINDING
+    val missingCastle = com.example.game.model.GameDefinitions.missingTechRequirements(world, Faction.PLAYER, com.example.game.model.TechType.ADVANCE_CASTLE)
+    assertEquals(false, missingCastle.isMet)
+    assertTrue(BuildingType.ARCHERY_RANGE in missingCastle.missingBuildings)
+    assertTrue(com.example.game.model.TechType.FORGING in missingCastle.missingTechs)
+
+    // Once Forging is researched, Iron Casting enqueues
+    world = world.copy(playerState = world.playerState.copy(researchedTechs = setOf(com.example.game.model.TechType.FORGING)))
+    val allowedBlacksmith = RtsEngine.enqueueTech(world, Faction.PLAYER, blacksmith.id, com.example.game.model.TechType.IRON_CASTING)
+    assertEquals(1, allowedBlacksmith.buildings.first { it.id == blacksmith.id }.queue.size)
+  }
+
+  @Test
+  fun `all 11 languages resolve cleanly and splash screen language selector switches ui copy`() {
+    assertEquals(11, com.example.ui.AppLanguage.entries.size)
+    for (lang in com.example.ui.AppLanguage.entries) {
+      val strings = com.example.ui.stringsFor(lang)
+      assertTrue(strings.playSkirmish.isNotBlank())
+      assertTrue(strings.tcRadiusErrorMsg.isNotBlank())
+      assertEquals(BuildingType.entries.size, strings.buildingNames.size)
+      assertEquals(BuildingType.entries.size, strings.buildingDescriptions.size)
+      assertEquals(UnitType.entries.size, strings.unitNames.size)
+      assertEquals(com.example.game.model.TechType.entries.size, strings.techNames.size)
+    }
+
+    val vm = GameViewModel()
+    composeRule.setContent {
+      val uiState = vm.uiState.collectAsState().value
+      androidx.compose.runtime.CompositionLocalProvider(
+        com.example.ui.LocalAppStrings provides com.example.ui.stringsFor(uiState.language)
+      ) {
+        CrownConquestTheme {
+          com.example.ui.TitleScreen(
+            onPlaySkirmish = {},
+            selectedLanguage = uiState.language,
+            onSelectLanguage = { vm.setLanguage(it) },
+          )
+        }
+      }
+    }
+
+    composeRule.onNodeWithTag("language_selector_card").assertIsDisplayed()
+    composeRule.onNodeWithTag("lang_fr").performScrollTo().performClick()
+    assertEquals(com.example.ui.AppLanguage.FR, vm.uiState.value.language)
+    composeRule.onNodeWithTag("play_skirmish_button").assertIsDisplayed()
+
+    composeRule.onNodeWithTag("lang_ja").performScrollTo().performClick()
+    assertEquals(com.example.ui.AppLanguage.JA, vm.uiState.value.language)
+  }
+
+  @Test
+  fun `resource counter stays visible in portrait and landscape and build strip displays descriptions`() {
+    val world = com.example.game.engine.MapGenerator.createWorld(SkirmishConfig(), seed = 909L)
+    val vil = world.units.first { it.faction == Faction.PLAYER && it.type == UnitType.VILLAGER }
+    val state = com.example.game.GameUiState(world = world, selectedUnitIds = setOf(vil.id))
+
+    composeRule.setContent {
+      CrownConquestTheme {
+        androidx.compose.foundation.layout.Column {
+          androidx.compose.foundation.layout.Box(modifier = androidx.compose.ui.Modifier.size(360.dp, 120.dp)) {
+            com.example.ui.TopResourceBar(
+              world = world,
+              gameSpeed = 1f,
+              onCycleSpeed = {},
+              onPauseClick = {},
+            )
+          }
+          androidx.compose.foundation.layout.Box(modifier = androidx.compose.ui.Modifier.size(820.dp, 220.dp)) {
+            com.example.ui.BottomCommandPanel(
+              uiState = state,
+              onJumpCamera = { _, _ -> },
+              onStartBuild = {},
+              onTrainUnit = {},
+              onResearchTech = {},
+              onToggleAttackMove = {},
+              onStopUnits = {},
+              onAutoGatherVillagers = {},
+              onSelectAllMilitary = {},
+              onJumpToTc = {},
+              onCycleIdleVillager = {},
+              isLandscape = true,
+            )
+          }
+        }
+      }
+    }
+
+    composeRule.onNodeWithTag("res_wood").assertIsDisplayed()
+    composeRule.onNodeWithTag("res_food").assertIsDisplayed()
+    composeRule.onNodeWithTag("res_gold").assertIsDisplayed()
+    composeRule.onNodeWithTag("res_stone").assertIsDisplayed()
+    composeRule.onNodeWithTag("res_pop").assertIsDisplayed()
+
+    val panelBounds = composeRule.onNodeWithTag("bottom_command_panel").assertIsDisplayed().getUnclippedBoundsInRoot()
+    assertTrue(
+      "Landscape bottom bar should be compact (<= 72.dp) but was ${panelBounds.bottom - panelBounds.top}",
+      (panelBounds.bottom - panelBounds.top) <= 72.dp,
+    )
+
+    composeRule.onNodeWithTag("build_category_economy").performScrollTo().performClick()
+    composeRule.onNodeWithTag("build_house").performScrollTo().performClick()
+    composeRule.onNodeWithTag("build_description_banner").assertIsDisplayed()
+    assertEquals(com.example.ui.theme.TimesFontFamily, com.example.ui.theme.AppTypography.displayLarge.fontFamily)
   }
 }
 

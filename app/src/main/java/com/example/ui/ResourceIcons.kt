@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.game.model.ResourceCost
@@ -208,6 +209,8 @@ fun ResourceCostBadges(
   cost: ResourceCost,
   affordable: Boolean,
   iconSize: Dp = 11.dp,
+  fontSize: TextUnit = 11.sp,
+  itemSpacing: Dp = 5.dp,
   modifier: Modifier = Modifier,
 ) {
   val items = buildList {
@@ -221,16 +224,21 @@ fun ResourceCostBadges(
   Row(
     modifier = modifier,
     verticalAlignment = Alignment.CenterVertically,
-    horizontalArrangement = Arrangement.spacedBy(5.dp),
+    horizontalArrangement = Arrangement.spacedBy(itemSpacing),
   ) {
     items.forEach { (resType, amount) ->
       Row(verticalAlignment = Alignment.CenterVertically) {
         ResourceGlyph(type = resType, modifier = Modifier.size(iconSize))
-        Spacer(modifier = Modifier.width(2.dp))
+        Spacer(modifier = Modifier.width(if (itemSpacing <= 3.dp) 1.dp else 2.dp))
         Text(
           text = amount.toString(),
-          style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Normal),
+          style = MaterialTheme.typography.labelSmall.copy(
+            fontSize = fontSize,
+            lineHeight = fontSize * 1.15f,
+            fontWeight = FontWeight.Normal,
+          ),
           color = textCol,
+          maxLines = 1,
         )
       }
     }

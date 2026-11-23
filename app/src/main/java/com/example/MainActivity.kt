@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -16,9 +17,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.game.AppScreen
 import com.example.game.GameViewModel
 import com.example.ui.GameScreen
+import com.example.ui.LocalAppStrings
 import com.example.ui.PostGameScreen
 import com.example.ui.SkirmishSetupScreen
 import com.example.ui.TitleScreen
+import com.example.ui.stringsFor
 import com.example.ui.theme.CrownConquestTheme
 
 class MainActivity : ComponentActivity() {
@@ -48,16 +51,19 @@ class MainActivity : ComponentActivity() {
           onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
         }
 
-        when (val screen = uiState.screen) {
-          AppScreen.Title -> {
-            TitleScreen(
-              onPlaySkirmish = vm::navigateToSetup,
-              musicEnabled = uiState.musicEnabled,
-              sfxEnabled = uiState.sfxEnabled,
-              onToggleMusic = vm::toggleMusic,
-              onToggleSfx = vm::toggleSfx,
-            )
-          }
+        CompositionLocalProvider(LocalAppStrings provides stringsFor(uiState.language)) {
+          when (val screen = uiState.screen) {
+            AppScreen.Title -> {
+              TitleScreen(
+                onPlaySkirmish = vm::navigateToSetup,
+                musicEnabled = uiState.musicEnabled,
+                sfxEnabled = uiState.sfxEnabled,
+                onToggleMusic = vm::toggleMusic,
+                onToggleSfx = vm::toggleSfx,
+                selectedLanguage = uiState.language,
+                onSelectLanguage = { lang -> vm.setLanguage(lang, context.applicationContext) },
+              )
+            }
           AppScreen.SkirmishSetup -> {
             SkirmishSetupScreen(
               config = uiState.config,
@@ -104,12 +110,13 @@ class MainActivity : ComponentActivity() {
               onMoveSelectedBuilding = vm::startMoveSelectedBuilding,
             )
           }
-          is AppScreen.PostGame -> {
-            PostGameScreen(
-              result = screen.result,
-              onPlayAgain = vm::startSkirmish,
-              onReturnToMenu = vm::navigateToTitle,
-            )
+            is AppScreen.PostGame -> {
+              PostGameScreen(
+                result = screen.result,
+                onPlayAgain = vm::startSkirmish,
+                onReturnToMenu = vm::navigateToTitle,
+              )
+            }
           }
         }
       }

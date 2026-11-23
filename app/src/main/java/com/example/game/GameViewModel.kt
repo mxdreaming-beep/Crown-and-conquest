@@ -31,6 +31,9 @@ import com.example.game.model.UnitType
 import com.example.game.model.VisualEffectType
 import com.example.game.render.IsometricMath
 import com.example.game.render.ProceduralTextures
+import com.example.ui.AppLanguage
+import com.example.ui.AppStrings
+import com.example.ui.stringsFor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -66,6 +69,7 @@ data class GameUiState(
   val animClock: Float = 0f,
   val musicEnabled: Boolean = true,
   val sfxEnabled: Boolean = true,
+  val language: AppLanguage = AppLanguage.EN,
 )
 
 class GameViewModel : ViewModel() {
@@ -81,6 +85,7 @@ class GameViewModel : ViewModel() {
   private var lastTapUnitType: UnitType? = null
   private var idleCycleIndex = 0
   private var soundEngine: SoundEngine? = null
+  private var prefsLoaded = false
 
   init {
     viewModelScope.launch(Dispatchers.Default) {
@@ -88,11 +93,34 @@ class GameViewModel : ViewModel() {
     }
   }
 
+  private fun s(): AppStrings = stringsFor(_uiState.value.language)
+
   fun initAudio(context: Context) {
+    if (!prefsLoaded) {
+      prefsLoaded = true
+      val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+      val savedLang = AppLanguage.fromCode(prefs.getString(KEY_LANGUAGE, null))
+      _uiState.update { it.copy(language = savedLang) }
+    }
     if (soundEngine != null) return
     val engine = SoundEngine(context)
     soundEngine = engine
     engine.setScreen(_uiState.value.screen)
+  }
+
+  fun setLanguage(language: AppLanguage, context: Context? = null) {
+    soundEngine?.playSfx(GameSfx.UI_CLICK, volume = 0.65f)
+    prefsLoaded = true
+    _uiState.update { it.copy(language = language) }
+    context?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+      ?.edit()
+      ?.putString(KEY_LANGUAGE, language.code)
+      ?.apply()
+  }
+
+  companion object {
+    private const val PREFS_NAME = "crown_conquest_prefs"
+    private const val KEY_LANGUAGE = "app_language"
   }
 
   fun toggleMusic() {
@@ -205,7 +233,8 @@ class GameViewModel : ViewModel() {
     soundEngine?.setScreen(AppScreen.Playing)
     soundEngine?.playSfx(GameSfx.ATTACK_HORN, volume = 0.78f)
 
-    val aiLabel = if (cfg.aiCount == 1) "1 AI Rival" else "${cfg.aiCount} AI Rivals"
+    val str = s()
+    val aiLabel = "${cfg.aiCount} ${str.aiRivalsLabel.substringBefore(" ")}"
     _uiState.update {
       it.copy(
         screen = AppScreen.Playing,
@@ -219,7 +248,7 @@ class GameViewModel : ViewModel() {
         boxSelectMode = false,
         attackMoveMode = false,
         isPaused = false,
-        statusBanner = "$aiLabel • ${cfg.mapSize.displayName} — Gather Food & Wood!",
+        statusBanner = "$aiLabel • ${str.mapSizeName(cfg.mapSize)} — ${str.skirmishStartHint}",
       )
     }
     startSimulationLoop()
@@ -404,7 +433,7 @@ class GameViewModel : ViewModel() {
         }
       it.copy(gameSpeed = next)
     }
-    showBanner("Game Speed: ${_uiState.value.gameSpeed}x")
+    showBanner("${s().gameSpeedPrefix} ${_uiState.value.gameSpeed}x")
   }
 
   fun toggleBoxSelectMode() {
@@ -436,14 +465,17 @@ class GameViewModel : ViewModel() {
     val pState = world.playerState
     val def = GameDefinitions.buildingDefs.getValue(type)
     val cost = GameDefinitions.adjustedBuildingCost(type, pState.civilization)
+    val str = s()
+    val bName = str.buildingName(type)
+    val bDesc = str.buildingDesc(type)
     if (pState.age.index < def.requiredAge.index) {
       soundEngine?.playSfx(GameSfx.ERROR_THUD, volume = 0.72f)
-      showBanner("Requires ${def.requiredAge.displayName}")
+      showBanner("${str.requiresAgePrefix} ${str.ageName(def.requiredAge)} • $bName: $bDesc")
       return
     }
     if (!pState.resources.canAfford(cost)) {
       soundEngine?.playSfx(GameSfx.ERROR_THUD, volume = 0.72f)
-      showBanner("Need ${cost.summary()} to build ${type.displayName}")
+      showBanner("${str.needResourcesPrefix} ${cost.summary()} ($bName: $bDesc)")
       return
     }
     soundEngine?.playSfx(GameSfx.UI_CLICK, volume = 0.65f)
@@ -456,7 +488,7 @@ class GameViewModel : ViewModel() {
         attackMoveMode = false,
       )
     }
-    showBanner("Tap map to place ${type.displayName}")
+    showBanner("${str.tapMapToPlacePrefix} $bName — $bDesc")
   }
 
   fun startMoveSelectedBuilding() {
@@ -474,7 +506,7 @@ class GameViewModel : ViewModel() {
         attackMoveMode = false,
       )
     }
-    showBanner("Tap new location to move ${b.type.displayName}")
+    showBanner("${s().tapLocationToMovePrefix} ${s().buildingName(b.type)}")
   }
 
   fun cancelBuildPlacement() {
@@ -527,6 +559,7 @@ class GameViewModel : ViewModel() {
 
   fun cycleIdleVillager() {
     val world = _uiState.value.world ?: return
+    val str = s()
     val idleVils =
       world.units.filter {
         it.faction == Faction.PLAYER && it.type == UnitType.VILLAGER && it.order == UnitOrderType.IDLE
@@ -543,13 +576,13 @@ class GameViewModel : ViewModel() {
           attackMoveMode = false,
         )
       }
-      showBanner("${idleVils.size} Idle Villager${if (idleVils.size > 1) "s" else ""} — Auto-collecting shortly")
+      showBanner("${idleVils.size} ${str.idleVillager}")
       return
     }
 
     val allVils = world.units.filter { it.faction == Faction.PLAYER && it.type == UnitType.VILLAGER }
     if (allVils.isEmpty()) {
-      showBanner("No villagers — train Villagers at your Town Center")
+      showBanner(str.noVillagersMsg)
       return
     }
     val chosen = allVils[idleCycleIndex % allVils.size]
@@ -563,12 +596,13 @@ class GameViewModel : ViewModel() {
         attackMoveMode = false,
       )
     }
-    showBanner("All ${allVils.size} villagers working • Focused Villager")
+    showBanner("${str.villagersPlural} (${allVils.size})")
   }
 
   fun autoGatherSelectedVillagers() {
     val state = _uiState.value
     var world = state.world ?: return
+    val str = s()
     val selectedVils =
       world.units.filter {
         it.id in state.selectedUnitIds && it.faction == Faction.PLAYER && it.type == UnitType.VILLAGER
@@ -586,15 +620,16 @@ class GameViewModel : ViewModel() {
     _uiState.update { it.copy(world = world, pendingBuildType = null) }
     if (assignedAny) {
       soundEngine?.playSfx(GameSfx.ORDER_GATHER, volume = 0.72f)
-      showBanner("Villager${if (selectedVils.size > 1) "s" else ""} gathering ${needed.displayName}")
+      showBanner("${str.taskGathering}: ${str.resourceName(needed)}")
     } else {
       soundEngine?.playSfx(GameSfx.ERROR_THUD, volume = 0.65f)
-      showBanner("No resources within 15 tiles of Town Center")
+      showBanner(str.noResourcesNearbyMsg)
     }
   }
 
   fun selectAllMilitary() {
     val world = _uiState.value.world ?: return
+    val str = s()
     val armyIds =
       world.units
         .filter { it.faction == Faction.PLAYER && it.type != UnitType.VILLAGER }
@@ -602,14 +637,14 @@ class GameViewModel : ViewModel() {
         .toSet()
     if (armyIds.isEmpty()) {
       soundEngine?.playSfx(GameSfx.ERROR_THUD, volume = 0.60f)
-      showBanner("Train troops at Barracks, Range, Stable, War Factory, or Airfield")
+      showBanner(str.trainTroopsHintMsg)
       return
     }
     soundEngine?.playSfx(GameSfx.SELECT_UNIT, volume = 0.78f)
     _uiState.update {
       it.copy(selectedUnitIds = armyIds, selectedBuildingId = null, pendingBuildType = null)
     }
-    showBanner("${armyIds.size} military units selected")
+    showBanner("${str.selectedUnitsPrefix} ${armyIds.size}")
   }
 
   fun stopSelectedUnits() {
@@ -632,23 +667,24 @@ class GameViewModel : ViewModel() {
     val cost = GameDefinitions.adjustedUnitCost(unitType, pState.civilization)
     val popCap = RtsEngine.populationCap(world.buildings.filter { it.faction == Faction.PLAYER })
     val popCur = world.units.count { it.faction == Faction.PLAYER }
+    val str = s()
 
     when {
       building.queue.size >= RtsEngine.MAX_PRODUCTION_QUEUE -> {
         soundEngine?.playSfx(GameSfx.ERROR_THUD, volume = 0.68f)
-        showBanner("Queue full (${RtsEngine.MAX_PRODUCTION_QUEUE}/${RtsEngine.MAX_PRODUCTION_QUEUE})")
+        showBanner("${str.queueFullMsg} (${RtsEngine.MAX_PRODUCTION_QUEUE}/${RtsEngine.MAX_PRODUCTION_QUEUE})")
       }
       popCur >= popCap -> {
         soundEngine?.playSfx(GameSfx.ERROR_THUD, volume = 0.68f)
-        showBanner("Population limit reached — build a House!")
+        showBanner(str.popLimitMsg)
       }
       pState.age.index < uDef.requiredAge.index -> {
         soundEngine?.playSfx(GameSfx.ERROR_THUD, volume = 0.68f)
-        showBanner("Requires ${uDef.requiredAge.displayName}")
+        showBanner("${str.requiresAgePrefix} ${str.ageName(uDef.requiredAge)}")
       }
       !pState.resources.canAfford(cost) -> {
         soundEngine?.playSfx(GameSfx.ERROR_THUD, volume = 0.68f)
-        showBanner("Need ${cost.summary()}")
+        showBanner("${str.needResourcesPrefix} ${cost.summary()}")
       }
       else -> {
         soundEngine?.playSfx(GameSfx.UI_CLICK, volume = 0.65f)
@@ -664,19 +700,26 @@ class GameViewModel : ViewModel() {
     val building = world.buildings.firstOrNull { it.id == bId } ?: return
     val pState = world.playerState
     val tDef = GameDefinitions.techDefs.getValue(techType)
+    val reqStatus = GameDefinitions.missingTechRequirements(world, Faction.PLAYER, techType)
+    val str = s()
     when {
       building.queue.size >= RtsEngine.MAX_PRODUCTION_QUEUE -> {
         soundEngine?.playSfx(GameSfx.ERROR_THUD, volume = 0.68f)
-        showBanner("Queue full (${RtsEngine.MAX_PRODUCTION_QUEUE}/${RtsEngine.MAX_PRODUCTION_QUEUE})")
+        showBanner("${str.queueFullMsg} (${RtsEngine.MAX_PRODUCTION_QUEUE}/${RtsEngine.MAX_PRODUCTION_QUEUE})")
       }
       techType in pState.researchedTechs || techType in pState.researchingTechs -> return
-      pState.age.index < tDef.requiredAge.index -> {
+      !reqStatus.isMet -> {
         soundEngine?.playSfx(GameSfx.ERROR_THUD, volume = 0.68f)
-        showBanner("Requires ${tDef.requiredAge.displayName}")
+        val missingParts = buildList {
+          reqStatus.missingAge?.let { add(str.ageName(it)) }
+          reqStatus.missingBuildings.forEach { add(str.buildingName(it)) }
+          reqStatus.missingTechs.forEach { add(str.techName(it)) }
+        }
+        showBanner("${str.requiresPrefix} ${missingParts.joinToString(" • ")}")
       }
       !pState.resources.canAfford(tDef.cost) -> {
         soundEngine?.playSfx(GameSfx.ERROR_THUD, volume = 0.68f)
-        showBanner("Need ${tDef.cost.summary()}")
+        showBanner("${str.needResourcesPrefix} ${tDef.cost.summary()}")
       }
       else -> {
         soundEngine?.playSfx(GameSfx.UI_CLICK, volume = 0.70f)
@@ -698,6 +741,7 @@ class GameViewModel : ViewModel() {
   fun onMapTap(screenX: Float, screenY: Float, viewportW: Float, viewportH: Float) {
     val state = _uiState.value
     val world = state.world ?: return
+    val str = s()
     val worldPos = IsometricMath.screenToWorld(screenX, screenY, state.camera, viewportW, viewportH)
     val tx = worldPos.x.toInt()
     val ty = worldPos.y.toInt()
@@ -709,7 +753,7 @@ class GameViewModel : ViewModel() {
         _uiState.update { it.copy(pendingMoveBuildingId = null, pendingBuildTile = null) }
         return
       }
-      if (RtsEngine.canPlaceBuilding(world, b.type, tx, ty, ignoreBuildingId = b.id)) {
+      if (RtsEngine.canPlaceBuilding(world, b.type, tx, ty, ignoreBuildingId = b.id, faction = Faction.PLAYER)) {
         val nextWorld = RtsEngine.moveBuilding(world, Faction.PLAYER, b.id, tx, ty)
         soundEngine?.playSfx(GameSfx.MOVE_BUILDING, volume = 0.78f)
         _uiState.update {
@@ -720,11 +764,12 @@ class GameViewModel : ViewModel() {
             pendingBuildTile = null,
           )
         }
-        showBanner("Relocated ${b.type.displayName}")
+        showBanner("${str.relocatedPrefix} ${str.buildingName(b.type)}")
       } else {
         _uiState.update { it.copy(pendingBuildTile = tx to ty) }
         soundEngine?.playSfx(GameSfx.ERROR_THUD, volume = 0.68f)
-        showBanner("Cannot relocate onto water, cliffs, or occupied tiles")
+        val outOfRadius = !RtsEngine.isWithinBuildRadius(world, Faction.PLAYER, b.type, tx, ty)
+        showBanner(if (outOfRadius) str.tcRadiusErrorMsg else str.moveInvalidTerrainErrorMsg)
       }
       return
     }
@@ -732,15 +777,16 @@ class GameViewModel : ViewModel() {
     // 1b. Building placement mode
     if (state.pendingBuildType != null) {
       val bType = state.pendingBuildType
-      if (state.pendingBuildTile == tx to ty && RtsEngine.canPlaceBuilding(world, bType, tx, ty)) {
+      if (state.pendingBuildTile == tx to ty && RtsEngine.canPlaceBuilding(world, bType, tx, ty, faction = Faction.PLAYER)) {
         confirmBuildAt(tx, ty)
       } else {
         _uiState.update { it.copy(pendingBuildTile = tx to ty) }
-        if (RtsEngine.canPlaceBuilding(world, bType, tx, ty)) {
+        if (RtsEngine.canPlaceBuilding(world, bType, tx, ty, faction = Faction.PLAYER)) {
           confirmBuildAt(tx, ty)
         } else {
           soundEngine?.playSfx(GameSfx.ERROR_THUD, volume = 0.68f)
-          showBanner("Cannot build on water, cliffs, or occupied tiles")
+          val outOfRadius = !RtsEngine.isWithinBuildRadius(world, Faction.PLAYER, bType, tx, ty)
+          showBanner(if (outOfRadius) str.tcRadiusErrorMsg else str.invalidTerrainErrorMsg)
         }
       }
       return
@@ -771,7 +817,7 @@ class GameViewModel : ViewModel() {
             .map { it.id }
             .toSet()
         _uiState.update { it.copy(selectedUnitIds = sameTypeIds, selectedBuildingId = null) }
-        showBanner("Selected ${sameTypeIds.size} ${hitPlayerUnit.type.displayName}s")
+        showBanner("${str.selectedUnitsPrefix} ${sameTypeIds.size} ${str.unitName(hitPlayerUnit.type)}")
       } else {
         _uiState.update { it.copy(selectedUnitIds = setOf(hitPlayerUnit.id), selectedBuildingId = null) }
       }
@@ -853,13 +899,14 @@ class GameViewModel : ViewModel() {
         boxSelectMode = false,
       )
     }
-    showBanner("Selected ${chosen.size} units")
+    showBanner("${s().selectedUnitsPrefix} ${chosen.size}")
   }
 
   private fun confirmBuildAt(tx: Int, ty: Int) {
     val state = _uiState.value
     val world = state.world ?: return
     val bType = state.pendingBuildType ?: return
+    val str = s()
     val selectedVils =
       world.units
         .filter { it.id in state.selectedUnitIds && it.type == UnitType.VILLAGER }
@@ -875,7 +922,7 @@ class GameViewModel : ViewModel() {
       }
     if (builders.isEmpty()) {
       soundEngine?.playSfx(GameSfx.ERROR_THUD, volume = 0.70f)
-      showBanner("Train a Villager at your Town Center first!")
+      showBanner(str.noVillagersMsg)
       return
     }
     soundEngine?.playSfx(GameSfx.BUILD_HAMMER, volume = 0.80f)
@@ -891,7 +938,7 @@ class GameViewModel : ViewModel() {
       )
     }
     if (queuedCount > 0) {
-      showBanner("Queued ${bType.displayName} (${queuedCount + 1} in build queue)")
+      showBanner("${str.queuedPrefix} ${str.buildingName(bType)} (+${queuedCount})")
     }
   }
 

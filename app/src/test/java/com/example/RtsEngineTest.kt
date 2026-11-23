@@ -84,6 +84,42 @@ class RtsEngineTest {
     world = world.copy(playerState = world.playerState.copy(resources = world.playerState.resources.copy(food = 600)))
     val tc = world.buildings.first { it.faction == Faction.PLAYER && it.type == BuildingType.TOWN_CENTER }
 
+    // Blocked without completed Mill and Barracks
+    val blockedWorld = RtsEngine.enqueueTech(world, Faction.PLAYER, tc.id, TechType.ADVANCE_FEUDAL)
+    assertEquals(0, blockedWorld.buildings.first { it.id == tc.id }.queue.size)
+
+    val mill =
+      com.example.game.model.Building(
+        id = world.nextEntityId,
+        type = BuildingType.MILL,
+        faction = Faction.PLAYER,
+        tileX = tc.tileX - 3,
+        tileY = tc.tileY,
+        footprint = 2,
+        hp = 750,
+        maxHp = 750,
+        buildProgress = 1f,
+        isComplete = true,
+      )
+    val barracks =
+      com.example.game.model.Building(
+        id = world.nextEntityId + 1,
+        type = BuildingType.BARRACKS,
+        faction = Faction.PLAYER,
+        tileX = tc.tileX + 4,
+        tileY = tc.tileY,
+        footprint = 2,
+        hp = 1200,
+        maxHp = 1200,
+        buildProgress = 1f,
+        isComplete = true,
+      )
+    world =
+      world.copy(
+        buildings = world.buildings + mill + barracks,
+        nextEntityId = world.nextEntityId + 2,
+      )
+
     world = RtsEngine.enqueueTech(world, Faction.PLAYER, tc.id, TechType.ADVANCE_FEUDAL)
     repeat(450) {
       world = RtsEngine.step(world, 0.1f, cfg)
@@ -458,13 +494,62 @@ class RtsEngineTest {
     val tc = world.buildings.first { it.faction == Faction.PLAYER && it.type == BuildingType.TOWN_CENTER }
     val enemyTc = world.buildings.first { it.faction == Faction.ENEMY && it.type == BuildingType.TOWN_CENTER }
 
-    // Advance Industrial -> Modern Age directly via Town Center queue
+    val university =
+      com.example.game.model.Building(
+        id = world.nextEntityId,
+        type = BuildingType.UNIVERSITY,
+        faction = Faction.PLAYER,
+        tileX = tc.tileX + 4,
+        tileY = tc.tileY,
+        footprint = 3,
+        hp = 2000,
+        maxHp = 2000,
+        buildProgress = 1f,
+        isComplete = true,
+      )
+    val blacksmith =
+      com.example.game.model.Building(
+        id = world.nextEntityId + 1,
+        type = BuildingType.BLACKSMITH,
+        faction = Faction.PLAYER,
+        tileX = tc.tileX - 3,
+        tileY = tc.tileY,
+        footprint = 2,
+        hp = 1400,
+        maxHp = 1400,
+        buildProgress = 1f,
+        isComplete = true,
+      )
+    val warFactory =
+      com.example.game.model.Building(
+        id = world.nextEntityId + 2,
+        type = BuildingType.WAR_FACTORY,
+        faction = Faction.PLAYER,
+        tileX = tc.tileX,
+        tileY = tc.tileY + 4,
+        footprint = 3,
+        hp = 2100,
+        maxHp = 2100,
+        buildProgress = 1f,
+        isComplete = true,
+      )
+
+    // Advance Industrial -> Modern Age with required buildings & techs
     world =
       world.copy(
+        buildings = world.buildings + university + blacksmith + warFactory,
+        nextEntityId = world.nextEntityId + 3,
         playerState =
           world.playerState.copy(
             age = Age.IMPERIAL_AGE,
             resources = world.playerState.resources.copy(food = 5000, gold = 5000, wood = 3000),
+            researchedTechs =
+              setOf(
+                TechType.BALLISTICS,
+                TechType.BLAST_FURNACE,
+                TechType.CHEMISTRY,
+                TechType.BALLISTICS_ALLOYS,
+              ),
           ),
       )
     world = RtsEngine.enqueueTech(world, Faction.PLAYER, tc.id, TechType.ADVANCE_INDUSTRIAL)

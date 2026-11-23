@@ -33,7 +33,7 @@ import com.example.game.render.BuildingRenderer.drawBuilding
 import com.example.game.render.ResourceRenderer.drawResourceNode
 import com.example.game.render.TerrainRenderer.drawIsometricTerrain
 import com.example.game.render.UnitRenderer.drawUnit
-import com.example.ui.theme.FrakturFontFamily
+import com.example.ui.theme.TimesFontFamily
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -56,6 +56,7 @@ object WorldRenderer {
     animClock: Float,
     textMeasurer: TextMeasurer,
     pendingMoveBuildingId: Int? = null,
+    buildingNames: Map<BuildingType, String> = emptyMap(),
   ) {
     val w = size.width
     val h = size.height
@@ -97,6 +98,21 @@ object WorldRenderer {
             camera = camera,
             isSelected = item.unit.id in selectedUnitIds,
           )
+      }
+    }
+
+    // Tiny nameplate banners above visible buildings
+    for (item in items) {
+      if (item is DepthItem.BuildingItem) {
+        drawBuildingBanner(
+          b = item.building,
+          label = buildingNames[item.building.type] ?: item.building.type.displayName,
+          camera = camera,
+          viewportW = w,
+          viewportH = h,
+          isDimmed = item.isDimmed,
+          textMeasurer = textMeasurer,
+        )
       }
     }
 
@@ -143,7 +159,7 @@ object WorldRenderer {
               val numLayout =
                 textMeasurer.measure(
                   text = "${idx + 1}",
-                  style = TextStyle(fontFamily = FrakturFontFamily, fontSize = 11.sp, fontWeight = FontWeight.Bold),
+                  style = TextStyle(fontFamily = TimesFontFamily, fontSize = 11.sp, fontWeight = FontWeight.Bold),
                 )
               drawText(
                 numLayout,
@@ -430,7 +446,7 @@ object WorldRenderer {
       val layout =
         textMeasurer.measure(
           text = ft.text,
-          style = TextStyle(fontFamily = FrakturFontFamily, fontSize = 14.sp, fontWeight = FontWeight.Normal),
+          style = TextStyle(fontFamily = TimesFontFamily, fontSize = 14.sp, fontWeight = FontWeight.Normal),
         )
       val topLeft = Offset(s.x - layout.size.width * 0.5f, s.y - 64f * z - rise)
       drawText(layout, color = Color.Black.copy(alpha = alpha * 0.85f), topLeft = Offset(topLeft.x + 1.5f, topLeft.y + 1.5f))
@@ -441,10 +457,17 @@ object WorldRenderer {
       pendingMoveBuildingId?.let { moveId ->
         world.buildings.firstOrNull { it.id == moveId && it.faction == Faction.PLAYER }
       }
+    val showTcRadius =
+      (pendingBuildType != null && pendingBuildType != BuildingType.TOWN_CENTER) ||
+        (movingB != null && movingB.type != BuildingType.TOWN_CENTER)
+    if (showTcRadius) {
+      drawTownCenterBuildRadiusRings(world = world, camera = camera, w = w, h = h, animClock = animClock)
+    }
+
     if (movingB != null && pendingBuildTile != null) {
       val fp = movingB.footprint
       val (tx, ty) = pendingBuildTile
-      val valid = RtsEngine.canPlaceBuilding(world, movingB.type, tx, ty, ignoreBuildingId = movingB.id)
+      val valid = RtsEngine.canPlaceBuilding(world, movingB.type, tx, ty, ignoreBuildingId = movingB.id, faction = Faction.PLAYER)
       val origCenter = IsometricMath.worldToScreen(movingB.centerX, movingB.centerY, camera, w, h)
       val newCenter = IsometricMath.worldToScreen(tx + fp * 0.5f, ty + fp * 0.5f, camera, w, h)
       drawLine(
@@ -464,7 +487,7 @@ object WorldRenderer {
     } else if (pendingBuildType != null && pendingBuildTile != null) {
       val fp = GameDefinitions.buildingDefs.getValue(pendingBuildType).footprintTiles
       val (tx, ty) = pendingBuildTile
-      val valid = RtsEngine.canPlaceBuilding(world, pendingBuildType, tx, ty)
+      val valid = RtsEngine.canPlaceBuilding(world, pendingBuildType, tx, ty, faction = Faction.PLAYER)
       val pTop = IsometricMath.worldToScreen(tx.toFloat(), ty.toFloat(), camera, w, h)
       val pRight = IsometricMath.worldToScreen((tx + fp).toFloat(), ty.toFloat(), camera, w, h)
       val pBottom = IsometricMath.worldToScreen((tx + fp).toFloat(), (ty + fp).toFloat(), camera, w, h)
@@ -477,6 +500,109 @@ object WorldRenderer {
     if (selectionBox != null) {
       drawRect(color = Color(0x227CB852), topLeft = selectionBox.topLeft, size = selectionBox.size)
       drawRect(color = Color(0xFF95CF63), topLeft = selectionBox.topLeft, size = selectionBox.size, style = Stroke(width = 1.8f))
+    }
+  }
+
+  private fun DrawScope.drawBuildingBanner(
+    b: Building,
+    label: String,
+    camera: CameraState,
+    viewportW: Float,
+    viewportH: Float,
+    isDimmed: Boolean,
+    textMeasurer: TextMeasurer,
+  ) {
+    val z = camera.zoom
+    val pTop = IsometricMath.worldToScreen(b.tileX.toFloat(), b.tileY.toFloat(), camera, viewportW, viewportH)
+    val pBottom = IsometricMath.worldToScreen((b.tileX + b.footprint).toFloat(), (b.tileY + b.footprint).toFloat(), camera, viewportW, viewportH)
+    val centerX = (pTop.x + pBottom.x) * 0.5f
+
+    val topOffset =
+      when {
+        b.type == BuildingType.FARM -> 26f * z
+        !b.isComplete -> (24f + 58f * b.buildProgress + 24f) * z
+        b.type == BuildingType.CASTLE || b.type == BuildingType.WATCH_TOWER -> 150f * z
+        b.type == BuildingType.UNIVERSITY -> 142f * z
+        b.type == BuildingType.WAR_FACTORY || b.type == BuildingType.AIRFIELD -> 128f * z
+        b.type == BuildingType.TOWN_CENTER -> 110f * z
+        else -> 98f * z
+      }
+    val bannerCenterY = pTop.y - topOffset
+    if (centerX < -120f || centerX > viewportW + 120f || bannerCenterY < -60f || bannerCenterY > viewportH + 60f) {
+      return
+    }
+
+    val measured =
+      textMeasurer.measure(
+        text = label,
+        style =
+          TextStyle(
+            fontFamily = TimesFontFamily,
+            fontSize = (9.5f * z.coerceIn(0.75f, 1.25f)).sp,
+            fontWeight = FontWeight.Bold,
+          ),
+      )
+    val dotPad = 9f
+    val padX = 5f
+    val padY = 2f
+    val pillW = measured.size.width + padX * 2f + dotPad
+    val pillH = measured.size.height + padY * 2f
+    val pillLeft = centerX - pillW * 0.5f
+    val pillTop = bannerCenterY - pillH * 0.5f
+    val alpha = if (isDimmed) 0.70f else 0.94f
+    val factionCol = Color(b.faction.bannerHex)
+
+    drawRoundRect(
+      color = Color(0xD817100A).copy(alpha = alpha),
+      topLeft = Offset(pillLeft, pillTop),
+      size = Size(pillW, pillH),
+      cornerRadius = androidx.compose.ui.geometry.CornerRadius(4f, 4f),
+    )
+    drawRoundRect(
+      color = factionCol.copy(alpha = alpha * 0.85f),
+      topLeft = Offset(pillLeft, pillTop),
+      size = Size(pillW, pillH),
+      cornerRadius = androidx.compose.ui.geometry.CornerRadius(4f, 4f),
+      style = Stroke(width = 1.1f),
+    )
+    drawCircle(
+      color = factionCol.copy(alpha = alpha),
+      radius = 2.6f,
+      center = Offset(pillLeft + padX + 2f, bannerCenterY),
+    )
+    drawText(
+      textLayoutResult = measured,
+      color = Color(0xFFF6ECD4).copy(alpha = alpha),
+      topLeft = Offset(pillLeft + padX + dotPad, pillTop + padY),
+    )
+  }
+
+  private fun DrawScope.drawTownCenterBuildRadiusRings(
+    world: GameWorld,
+    camera: CameraState,
+    w: Float,
+    h: Float,
+    animClock: Float,
+  ) {
+    val tcs = world.buildings.filter { it.faction == Faction.PLAYER && it.type == BuildingType.TOWN_CENTER }
+    val z = camera.zoom
+    val ringDash = PathEffect.dashPathEffect(floatArrayOf(10f * z, 7f * z), animClock * 16f * z)
+    val segments = 48
+    for (tc in tcs) {
+      val path = Path()
+      for (i in 0 until segments) {
+        val angle = (i.toFloat() / segments) * (Math.PI.toFloat() * 2f)
+        val wx = (tc.centerX + RtsEngine.BUILD_TC_RADIUS * cos(angle)).coerceIn(0f, world.mapSize.toFloat())
+        val wy = (tc.centerY + RtsEngine.BUILD_TC_RADIUS * sin(angle)).coerceIn(0f, world.mapSize.toFloat())
+        val sp = IsometricMath.worldToScreen(wx, wy, camera, w, h)
+        if (i == 0) path.moveTo(sp.x, sp.y) else path.lineTo(sp.x, sp.y)
+      }
+      path.close()
+      drawPath(
+        path = path,
+        color = Color(0xCCEEC968),
+        style = Stroke(width = 2.0f * z, pathEffect = ringDash),
+      )
     }
   }
 }

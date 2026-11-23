@@ -8,13 +8,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.example.R
 
-val FrakturFontFamily = FontFamily(Font(R.font.unifrakturmaguntia, FontWeight.Normal))
+val TimesFontFamily = FontFamily(Font(R.font.tinos, FontWeight.Normal))
 
 val AppTypography =
   Typography(
     displayLarge =
       TextStyle(
-        fontFamily = FrakturFontFamily,
+        fontFamily = TimesFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 42.sp,
         lineHeight = 48.sp,
@@ -22,7 +22,7 @@ val AppTypography =
       ),
     displayMedium =
       TextStyle(
-        fontFamily = FrakturFontFamily,
+        fontFamily = TimesFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 34.sp,
         lineHeight = 40.sp,
@@ -30,7 +30,7 @@ val AppTypography =
       ),
     headlineLarge =
       TextStyle(
-        fontFamily = FrakturFontFamily,
+        fontFamily = TimesFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 28.sp,
         lineHeight = 34.sp,
@@ -38,7 +38,7 @@ val AppTypography =
       ),
     headlineMedium =
       TextStyle(
-        fontFamily = FrakturFontFamily,
+        fontFamily = TimesFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 24.sp,
         lineHeight = 30.sp,
@@ -46,7 +46,7 @@ val AppTypography =
       ),
     headlineSmall =
       TextStyle(
-        fontFamily = FrakturFontFamily,
+        fontFamily = TimesFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 20.sp,
         lineHeight = 26.sp,
@@ -54,7 +54,7 @@ val AppTypography =
       ),
     titleLarge =
       TextStyle(
-        fontFamily = FrakturFontFamily,
+        fontFamily = TimesFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 19.sp,
         lineHeight = 25.sp,
@@ -62,7 +62,7 @@ val AppTypography =
       ),
     titleMedium =
       TextStyle(
-        fontFamily = FrakturFontFamily,
+        fontFamily = TimesFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 16.sp,
         lineHeight = 22.sp,
@@ -70,7 +70,7 @@ val AppTypography =
       ),
     titleSmall =
       TextStyle(
-        fontFamily = FrakturFontFamily,
+        fontFamily = TimesFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 15.sp,
         lineHeight = 20.sp,
@@ -78,7 +78,7 @@ val AppTypography =
       ),
     bodyLarge =
       TextStyle(
-        fontFamily = FrakturFontFamily,
+        fontFamily = TimesFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 16.sp,
         lineHeight = 22.sp,
@@ -86,7 +86,7 @@ val AppTypography =
       ),
     bodyMedium =
       TextStyle(
-        fontFamily = FrakturFontFamily,
+        fontFamily = TimesFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 14.sp,
         lineHeight = 20.sp,
@@ -94,7 +94,7 @@ val AppTypography =
       ),
     bodySmall =
       TextStyle(
-        fontFamily = FrakturFontFamily,
+        fontFamily = TimesFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 12.5.sp,
         lineHeight = 17.sp,
@@ -102,7 +102,7 @@ val AppTypography =
       ),
     labelLarge =
       TextStyle(
-        fontFamily = FrakturFontFamily,
+        fontFamily = TimesFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 14.sp,
         lineHeight = 18.sp,
@@ -110,7 +110,7 @@ val AppTypography =
       ),
     labelMedium =
       TextStyle(
-        fontFamily = FrakturFontFamily,
+        fontFamily = TimesFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 12.5.sp,
         lineHeight = 16.sp,
@@ -118,7 +118,7 @@ val AppTypography =
       ),
     labelSmall =
       TextStyle(
-        fontFamily = FrakturFontFamily,
+        fontFamily = TimesFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 11.sp,
         lineHeight = 14.sp,
